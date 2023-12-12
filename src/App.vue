@@ -16,15 +16,59 @@
       >
       <div class="dropdown" v-show="results.length > 0 && isSearchFocused">
         <ul class="dropdown-list" @mousedown="handleDropdownClick">
-          <li v-for="(result) in results" :key="result.Drug" @click="selectSuggestion(result)">
-            {{ result.Drug }}
+          <li v-for="(result) in results" :key="result.drug_name" @click="selectSuggestion(result)">
+            {{ result.drug_name }}
           </li>
         </ul>
       </div>
       <div class="selected-drug">
         <span class="label">Назва обраного продукта:</span>
-        <span class="value" v-if="selectedDrug">{{ selectedDrug.Drug }}</span>
+        <span class="value" v-if="selectedDrug">{{ selectedDrug.drug_name }}</span>
       </div>
+      <form @submit.prevent="submitForm" class="form">
+        <div class="form-group">
+          <label>Оберіть колонки для кластеризації:</label>
+          <table class="table">
+            <thead>
+            <tr>
+              <th></th>
+              <th><b>Назва</b></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="column in num_columns" :key="column">
+              <td>
+                <input type="checkbox" v-model="selectedColumns" :value="column">
+              </td>
+              <td>{{ column }}</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="form-group">
+          <label for="distance">Виберіть функцію вимірювання відстані</label>
+          <select class="form-control" id="distance" v-model="distance_method" @change="updateDistanceRequirements"
+                  :disabled="!selectedColumns.length" required>
+            <option v-for="(value, key) in distances" :value="key">{{ value }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="k_count">Введіть число K:</label>
+          <input type="number" id="k_count" style="margin-left: 10px; width: 10%; border-radius: 10px" v-model="k_count"
+                 :disabled="!selectedColumns.length" required>
+        </div>
+        <div v-if="requireP" class="form-group">
+          <label for="p_num">Введіть число P:</label>
+          <input type="number" id="p_num" style="margin-left: 10px; width: 10%; border-radius: 10px" v-model="p_num"
+                 :disabled="!selectedColumns.length" required>
+        </div>
+        <div v-if="requireR" class="form-group">
+          <label for="r_num">Введіть число R:</label>
+          <input type="number" id="r_num" style="margin-left: 10px; width: 10%; border-radius: 10px" v-model="r_num"
+                 :disabled="!selectedColumns.length" required>
+        </div>
+        <button type="submit" :disabled="!selectedColumns.length">Відправити</button>
+      </form>
     </div>
   </div>
 </template>
@@ -40,6 +84,8 @@ export default {
       search: '',
       frequentQueries: ['Задание 1', 'Задание 2', 'Задание 3'],
       results: [],
+      selectedColumns: [], // Added selectedColumns
+      num_columns: [],
       distances: {
         euclidean: "Евклідова",
         squared_euclidean: "Квадрат відстані Евкліда",
@@ -51,31 +97,69 @@ export default {
       isSearchFocused: false, // Track whether the search input is focused
       isDropdownClicked: false, // Track whether the dropdown was clicked
       selectedDrug: null, // Store the selected drug information
+      k_count: 2,
+      p_num: 1,
+      r_num: 1,
+      requireP: false,
+      requireR: false,
+      distance_method: "euclidean"
     };
   },
   methods: {
-    scrollTo(query) {
-      const element = document.querySelector(`[data-query="${query}"`);
-      element.scrollIntoView({ behavior: 'smooth' });
+    async submitForm() {
+      const distance_params = {};
+      if (this.requireP) {
+        distance_params.p_num = this.p_num;
+      }
+      if (this.requireR) {
+        distance_params.r_num = this.r_num;
+      }
+
+      const request_data = {
+        columns: this.selectedColumns,
+        centroids_count: this.k_count,
+        distance: this.distance_method,
+        distance_params,
+      };
+
+      const response = await axios.post(`${this.back_host}/calculate`, request_data)
+      console.log(response)
     },
 
-    getResults() {
+    updateDistanceRequirements() {
+      if (this.distance_method === 'minkowski') {
+        this.requireP = true;
+        this.requireR = false;
+      } else if (this.distance_method === 'power') {
+        this.requireP = true;
+        this.requireR = true;
+      } else {
+        this.requireP = false;
+        this.requireR = false;
+      }
+    },
+
+    getSearchResults() {
       const response = axios.get(`${this.back_host}/search?text_to_search=${this.search}`);
       response.then((response) => {
         this.results = response.data;
       });
     },
 
+    getNumColumns() {
+      return axios.get(`${this.back_host}/columns`)
+          .then((response) => this.num_columns = response.data)
+    },
+
+
     selectSuggestion(result) {
       // Set the selected suggestion in the search bar
-      this.search = result.Drug;
+      this.search = result.drug_name;
       // Store the full information of the selected drug
       this.selectedDrug = result;
       // Clear the results and hide the dropdown
       this.results = [];
       this.isSearchFocused = false;
-      console.log(this.selectedDrug)
-      console.log(this.results)
     },
 
     handleSearchFocus() {
@@ -97,10 +181,18 @@ export default {
     },
   },
   watch: {
+    selectedColumns(newVal) {
+      if (newVal.length > 3) {
+        this.selectedColumns.pop(); // Remove the last element if more than 3 are selected
+      }
+    },
     search: function () {
-      this.getResults();
+      this.getSearchResults();
     },
   },
+  created() {
+    this.getNumColumns();
+  }
 };
 </script>
 
@@ -125,6 +217,7 @@ export default {
   width: 900px;
   margin: 0 auto;
   margin-top: 20px;
+  margin-bottom: 40px;
 }
 
 .card-input {
@@ -205,5 +298,43 @@ export default {
 .value {
   font-style: italic;
   color: #333;
+}
+
+.form {
+  margin-top: 20px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.table th {
+  background-color: #f2f2f2;
+}
+
+button {
+  padding: 10px 20px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background-color: #ddd;
+  cursor: not-allowed;
 }
 </style>
