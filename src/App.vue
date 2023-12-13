@@ -22,7 +22,7 @@
         </ul>
       </div>
       <div class="selected-drug">
-        <span class="label">Назва обраного продукта:</span>
+        <span class="label">Назва обраного препарату:</span>
         <span class="value" v-if="selectedDrug">{{ selectedDrug.drug_name }}</span>
       </div>
       <form @submit.prevent="submitForm" class="form">
