@@ -123,7 +123,6 @@ export default {
     return {
       back_host: 'http://127.0.0.1:8000',
       search: '',
-      frequentQueries: ['Задание 1', 'Задание 2', 'Задание 3'],
       results: [],
       selectedColumns: [], // Added selectedColumns
       columns_info: [],
@@ -151,15 +150,6 @@ export default {
       cluster_id_key: "cluster_id",
       loading: false,
     };
-  },
-  computed: {
-    numberRange() {
-      const result = [];
-      for (let i = 2; i <= 10; i += 1) {
-        result.push(i);
-      }
-      return result;
-    },
   },
   methods: {
     async submitForm() {
@@ -274,6 +264,7 @@ export default {
   font-size: 24px;
   font-weight: bold;
   border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(250, 93, 93, 0.2);
 }
 
 .card {
@@ -308,20 +299,6 @@ export default {
   text-align: center;
   border-radius: 8px;
   margin: 0 auto
-}
-
-.card-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.card-link {
-  font-size: 16px;
-  padding: 10px 15px;
-  border-radius: 4px;
-  color: #000;
-  border-radius: 4px;
 }
 
 .dropdown {
