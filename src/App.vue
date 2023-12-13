@@ -83,12 +83,34 @@
                :style="{ backgroundColor: selectedColumns.length ? '#bdc4ab' : disable_color, marginBottom: 0 }">
             <label for="limit">Введіть обмеження (опціонально):</label>
             <input type="number" id="limit" style="margin-left: 10px; width: 10%; border-radius: 10px" v-model="limit"
-                   :disabled="!selectedColumns.length" required min="1">
+                   :disabled="!selectedColumns.length" value="-1" required min="-1">
           </div>
         </div>
-        <button type="submit" :disabled="!selectedColumns.length">Відправити</button>
+        <button type="submit" :disabled="!selectedColumns.length || !selectedDrug">Calculate!</button>
       </form>
     </div>
+    <div v-if="show_calculated_table">
+      <h2 class="table-title">Calculated table</h2>
+      <table class="table">
+        <thead>
+        <tr>
+          <th v-for="column in columns_info">{{ column[0] }}</th>
+          <th>cluster</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr v-for="item in calculated_response" :key="item">
+          <td v-for="column in columns_info">
+            {{ item[column[0]] }}
+          </td>
+          <td>{{ item[cluster_id_key] }}</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div v-if="loading" class="loading-overlay">
+    <div class="loading-spinner"></div>
   </div>
 </template>
 
@@ -122,29 +144,52 @@ export default {
       requireP: false,
       requireR: false,
       distance_method: "euclidean",
-      limit: null,
-      disable_color: 'rgba(224,247,250,0.42)'
+      limit: -1,
+      disable_color: 'rgba(224,247,250,0.42)',
+      calculated_response: [],
+      show_calculated_table: false,
+      cluster_id_key: "cluster_id",
+      loading: false,
     };
+  },
+  computed: {
+    numberRange() {
+      const result = [];
+      for (let i = 2; i <= 10; i += 1) {
+        result.push(i);
+      }
+      return result;
+    },
   },
   methods: {
     async submitForm() {
-      const distance_params = {};
-      if (this.requireP) {
-        distance_params.p_num = this.p_num;
-      }
-      if (this.requireR) {
-        distance_params.r_num = this.r_num;
-      }
+      try {
+        this.loading = true;
+        const distance_params = {};
+        if (this.requireP) {
+          distance_params.p_num = this.p_num;
+        }
+        if (this.requireR) {
+          distance_params.r_num = this.r_num;
+        }
 
-      const request_data = {
-        columns: this.selectedColumns,
-        centroids_count: this.k_count,
-        distance: this.distance_method,
-        distance_params,
-      };
+        const request_data = {
+          drug_id: this.selectedDrug.drug_id,
+          columns: this.selectedColumns,
+          centroids_count: this.k_count,
+          distance: this.distance_method,
+          distance_params,
+          limit: this.limit === -1 ? null : this.limit,
+        };
 
-      const response = await axios.post(`${this.back_host}/calculate`, request_data)
-      console.log(response)
+        const response = await axios.post(`${this.back_host}/calculate`, request_data)
+        this.calculated_response = response.data
+        this.show_calculated_table = true
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        this.loading = false;
+      }
     },
 
     updateDistanceRequirements() {
@@ -337,6 +382,29 @@ export default {
   margin-bottom: 40px;
 }
 
+.table-title {
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.table th {
+  background-color: #f2f2f2;
+}
+
 .value {
   font-style: italic;
   color: #333;
@@ -382,5 +450,36 @@ button {
 button:disabled {
   background-color: #ddd;
   cursor: not-allowed;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000; /* Adjust z-index as needed */
+}
+
+.loading-spinner {
+  border: 8px solid #f3f3f3;
+  border-top: 8px solid #3498db;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>
