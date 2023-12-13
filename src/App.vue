@@ -27,45 +27,64 @@
       </div>
       <form @submit.prevent="submitForm" class="form">
         <div class="form-group">
-          <label>Оберіть колонки для кластеризації:</label>
+          <label class="from-label">
+            <span class="form-label-text">Оберіть колонки для кластеризації:</span>
+          </label>
           <table class="table">
             <thead>
             <tr>
               <th></th>
               <th><b>Назва</b></th>
+              <th><b>Тип</b></th>
             </tr>
             </thead>
             <tbody>
-            <tr v-for="column in num_columns" :key="column">
+            <tr v-for="column_info in columns_info" :key="column_info">
               <td>
-                <input type="checkbox" v-model="selectedColumns" :value="column">
+                <input type="checkbox" v-model="selectedColumns" :value="column_info[0]" :disabled="!column_info[2]">
               </td>
-              <td>{{ column }}</td>
+              <td>{{ column_info[0] }}</td>
+              <td>{{ column_info[1] }}</td>
             </tr>
             </tbody>
           </table>
         </div>
-        <div class="form-group">
-          <label for="distance">Виберіть функцію вимірювання відстані</label>
-          <select class="form-control" id="distance" v-model="distance_method" @change="updateDistanceRequirements"
-                  :disabled="!selectedColumns.length" required>
-            <option v-for="(value, key) in distances" :value="key">{{ value }}</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="k_count">Введіть число K:</label>
-          <input type="number" id="k_count" style="margin-left: 10px; width: 10%; border-radius: 10px" v-model="k_count"
-                 :disabled="!selectedColumns.length" required>
-        </div>
-        <div v-if="requireP" class="form-group">
-          <label for="p_num">Введіть число P:</label>
-          <input type="number" id="p_num" style="margin-left: 10px; width: 10%; border-radius: 10px" v-model="p_num"
-                 :disabled="!selectedColumns.length" required>
-        </div>
-        <div v-if="requireR" class="form-group">
-          <label for="r_num">Введіть число R:</label>
-          <input type="number" id="r_num" style="margin-left: 10px; width: 10%; border-radius: 10px" v-model="r_num"
-                 :disabled="!selectedColumns.length" required>
+        <div class="main-container" :style="{ backgroundColor: selectedColumns.length ? '#dccccc' : '#dadada' }">
+          <div class="form-group" :style="{ backgroundColor: selectedColumns.length ? '#ceeaf3' : disable_color }">
+            <label for="distance">Виберіть функцію вимірювання відстані</label>
+            <select class="form-control" id="distance" v-model="distance_method" @change="updateDistanceRequirements"
+                    :disabled="!selectedColumns.length" required>
+              <option v-for="(value, key) in distances" :value="key">{{ value }}</option>
+            </select>
+          </div>
+
+          <div class="form-group" :style="{ backgroundColor: selectedColumns.length ? '#fce4ec' : disable_color }">
+            <label for="k_count">Введіть число K:</label>
+            <input type="number" id="k_count" style="margin-left: 10px; width: 10%; border-radius: 10px"
+                   v-model="k_count"
+                   :disabled="!selectedColumns.length" required min="2">
+          </div>
+
+          <div class="form-group" v-if="requireP"
+               :style="{ backgroundColor: selectedColumns.length ? '#d0efb1' : disable_color }">
+            <label for="p_num">Введіть число P:</label>
+            <input type="number" id="p_num" style="margin-left: 10px; width: 10%; border-radius: 10px" v-model="p_num"
+                   :disabled="!selectedColumns.length" required>
+          </div>
+
+          <div class="form-group" v-if="requireR"
+               :style="{ backgroundColor: selectedColumns.length ? '#fff9c4' : disable_color }">
+            <label for="r_num">Введіть число R:</label>
+            <input type="number" id="r_num" style="margin-left: 10px; width: 10%; border-radius: 10px" v-model="r_num"
+                   :disabled="!selectedColumns.length" required>
+          </div>
+
+          <div class="form-group"
+               :style="{ backgroundColor: selectedColumns.length ? '#bdc4ab' : disable_color, marginBottom: 0 }">
+            <label for="limit">Введіть обмеження (опціонально):</label>
+            <input type="number" id="limit" style="margin-left: 10px; width: 10%; border-radius: 10px" v-model="limit"
+                   :disabled="!selectedColumns.length" required min="1">
+          </div>
         </div>
         <button type="submit" :disabled="!selectedColumns.length">Відправити</button>
       </form>
@@ -85,7 +104,7 @@ export default {
       frequentQueries: ['Задание 1', 'Задание 2', 'Задание 3'],
       results: [],
       selectedColumns: [], // Added selectedColumns
-      num_columns: [],
+      columns_info: [],
       distances: {
         euclidean: "Евклідова",
         squared_euclidean: "Квадрат відстані Евкліда",
@@ -102,7 +121,9 @@ export default {
       r_num: 1,
       requireP: false,
       requireR: false,
-      distance_method: "euclidean"
+      distance_method: "euclidean",
+      limit: null,
+      disable_color: 'rgba(224,247,250,0.42)'
     };
   },
   methods: {
@@ -148,7 +169,7 @@ export default {
 
     getNumColumns() {
       return axios.get(`${this.back_host}/columns`)
-          .then((response) => this.num_columns = response.data)
+          .then((response) => this.columns_info = response.data)
     },
 
 
@@ -218,6 +239,7 @@ export default {
   margin: 0 auto;
   margin-top: 20px;
   margin-bottom: 40px;
+  padding: 10px; /* Add padding to create space inside the card */
 }
 
 .card-input {
@@ -295,6 +317,26 @@ export default {
   margin-right: 10px;
 }
 
+.from-label {
+  padding-bottom: 5px;
+}
+
+.form-label-text {
+  font-weight: bold;
+  font-size: 20px; /* Adjust the font size as needed */
+}
+
+.main-container {
+  box-sizing: border-box; /* Include padding and border in the element's total width and height */
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  width: calc(100% - 20px); /* Adjust the width to fit within the card */
+  margin: 0 auto;
+  margin-top: 20px;
+  margin-bottom: 40px;
+}
+
 .value {
   font-style: italic;
   color: #333;
@@ -306,6 +348,10 @@ export default {
 
 .form-group {
   margin-bottom: 15px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  padding: 10px;
+  width: 100%;
 }
 
 .table {
